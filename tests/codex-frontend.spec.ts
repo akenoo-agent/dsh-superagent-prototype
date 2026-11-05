@@ -14,6 +14,7 @@ describe('frontend delegation scope', () => {
     expect(allowed('frontend/web/src/app/api/quote/route.ts')).toBe(false)
     expect(allowed('frontend/web/src/app/api/x.css')).toBe(false)
     expect(allowed('frontend/web/src/lib/server/proxy.ts')).toBe(false)
+    expect(allowed('frontend/web/src/lib/api.ts')).toBe(false)
     expect(allowed('frontend/web/src/server/bff.ts')).toBe(false)
     expect(allowed('frontend/contract/openapi.json')).toBe(false)
   })
@@ -47,7 +48,7 @@ describe('delegation launcher', () => {
       execFileSync('git', ['-C', repo, 'add', '.'])
       execFileSync('git', ['-C', repo, '-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'initial'])
       writeFileSync(join(repo, 'backend'), 'pre-existing backend change')
-      writeFileSync(join(bin, 'codex'), `#!/bin/sh\nif [ "$1" = login ]; then echo 'Logged in using ChatGPT'; exit 0; fi\n[ "$OPENAI_API_KEY" = '' ] || exit 10\nprintf 'new' > frontend/web/src/app/page.tsx\n[ "$WRITE_API" = 1 ] && printf bad > backend\nexit 0\n`)
+      writeFileSync(join(bin, 'codex'), `#!/bin/sh\nif [ "$1" = login ]; then echo 'Logged in using ChatGPT'; exit 0; fi\n[ "$OPENAI_API_KEY" = '' ] || exit 10\nprintf 'new' > frontend/web/src/app/page.tsx\n[ "$WRITE_API" = 1 ] && printf bad > backend\n[ "$WRITE_HUGE" = 1 ] && head -c 17000000 /dev/zero\nexit 0\n`)
       writeFileSync(join(bin, 'npm'), '#!/bin/sh\nexit 0\n')
       chmodSync(join(bin, 'codex'), 0o755); chmodSync(join(bin, 'npm'), 0o755)
       const output = execFileSync(process.execPath, [join(process.cwd(), 'scripts/codex-frontend.mjs'), repo], {
@@ -72,6 +73,13 @@ describe('delegation launcher', () => {
       })
       expect(checksFailed.status).toBe(1)
       expect(checksFailed.stdout).toContain('"exit":17')
+      writeFileSync(join(repo, 'frontend/web/src/app/page.tsx'), 'old')
+      const overflow = spawnSync(process.execPath, [join(process.cwd(), 'scripts/codex-frontend.mjs'), repo], {
+        input: 'Update UI', encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, WRITE_HUGE: '1' },
+      })
+      expect(overflow.status).toBe(1)
+      expect(overflow.stdout).toContain('Codex could not complete')
+      expect(overflow.stdout).toContain('frontend/web/src/app/page.tsx')
     } finally { rmSync(dir, { recursive: true, force: true }) }
   })
 })

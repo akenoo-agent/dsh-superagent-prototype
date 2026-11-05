@@ -7,7 +7,7 @@ import { delimiter, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export function allowed(path) {
-  if (/^frontend\/web\/src\/(app\/api|server|lib\/server)(\/|$)/.test(path)) return false
+  if (/^frontend\/web\/src\/(app\/api|server|lib\/server)(\/|$)/.test(path) || path === 'frontend/web/src/lib/api.ts') return false
   return /^(frontend\/web\/(src\/(app\/(?!api\/)|components\/|features\/|lib\/(?!server\/))|public\/|tests\/(components\/|unit\/)))/.test(path)
 }
 function run(program, args, cwd, input, env = process.env) {
@@ -51,14 +51,13 @@ export function main() {
   if (login.error) throw new Error(`Codex login check could not start: ${login.error.message}`)
   if (login.status !== 0 || !`${login.stdout}\n${login.stderr}`.includes('Logged in using ChatGPT')) throw new Error('Codex ChatGPT login is required')
   const head = git(cwd, 'rev-parse', 'HEAD'), index = git(cwd, 'diff', '--cached', '--binary'), before = snapshot(cwd)
-  const prompt = `Implement only this Akenoo web UI task: ${task}\nEdit only frontend/web/src/app (except api), src/components, src/features, src/lib (except server), frontend/web/public, and frontend/web/tests/components or tests/unit. Do not edit API routes, server, contracts, backend, configuration, git metadata or other files. Do not commit. Do not read or disclose credentials or auth files.`
+  const prompt = `Implement only this Akenoo web UI task: ${task}\nEdit only frontend/web/src/app (except api), src/components, src/features, src/lib (except server and api.ts), frontend/web/public, and frontend/web/tests/components or tests/unit. Do not edit API routes or clients, server, contracts, backend, configuration, git metadata or other files. Do not commit. Do not read or disclose credentials or auth files.`
   const result = run(codex, ['exec', '--ephemeral', '--ignore-user-config', '--sandbox', 'workspace-write', '-C', cwd, '-'], cwd, prompt, env)
-  if (result.error) throw new Error(`Codex could not complete: ${result.error.message}`)
   let files = changed(before, snapshot(cwd))
   const outside = files.filter(file => !allowed(file))
   const gitChanged = git(cwd, 'rev-parse', 'HEAD') !== head || git(cwd, 'diff', '--cached', '--binary') !== index
-  console.log(JSON.stringify({ codexExit: result.status, changedFiles: files, outsideScope: outside, gitChanged }, null, 2))
-  if (result.status !== 0 || outside.length || gitChanged) return 1
+  console.log(JSON.stringify({ codexExit: result.status, ...(result.error ? { error: `Codex could not complete: ${result.error.message}` } : {}), changedFiles: files, outsideScope: outside, gitChanged }, null, 2))
+  if (result.error || result.status !== 0 || outside.length || gitChanged) return 1
   const checks = [['npm', 'run', 'lint'], ['npm', 'run', 'typecheck'], ['npm', 'test']]
   let failed = false
   for (const [program, ...args] of checks) {
