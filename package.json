@@ -25,7 +25,8 @@
     "locale/*.json",
     "README.md",
     "prompts",
-    "skills"
+    "skills",
+    "scripts/codex-frontend.mjs"
   ],
   "dsh": {
     "bundle": {
