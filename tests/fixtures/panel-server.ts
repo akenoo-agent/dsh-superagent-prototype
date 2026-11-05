@@ -291,6 +291,10 @@ const ticketOf = (id: string) =>
 const SourceSave = z.object({ enabled: z.boolean(), config: z.unknown() })
 
 const ROUTES: { [K in keyof Api]: Route<K> } = {
+  'GET chat/conversations': { answer: () => ({ items: [] }) },
+  'POST chat/conversations': { body: true, answer: () => ({ id: 'chat-1', title: 'Nouvelle conversation', createdAt: '', updatedAt: '' }) },
+  'GET chat/conversations/:id': { answer: ({ params }) => ({ id: params.id, title: 'Nouvelle conversation', createdAt: '', updatedAt: '', messages: [], tickets: [] }) },
+  'POST chat/conversations/:id/messages': { body: true, answer: ({ body }) => ({ id: 'message-1', role: 'user', text: body.text, at: '', agent: body.agent }) },
   'GET state': { answer: stateView },
   'GET overview': { answer: overviewView },
   'GET search': { query: ['q'], answer: async ({ query }) => {

@@ -18,6 +18,7 @@ import type { Health } from '../sources/host.ts'
 import type { SourceRegistry } from '../sources/registry.ts'
 import type { Sessions } from './sessions.ts'
 import type { Store } from './store.ts'
+import type { LocalChat } from './local-chat.ts'
 import type { TextCache } from './cache.ts'
 import type { LinkTarget, ViewHost } from './views/records.ts'
 import type { Variable } from './execution-environment.ts'
@@ -29,6 +30,7 @@ import { decisionList, search, threadDetail, threadList } from './views/threads.
 import { executorLoad, ticketDetail, ticketList } from './views/tickets.ts'
 
 export interface HttpHost {
+  readonly chat: LocalChat
   readonly store: Store
   /** Feishu message links resolved since startup, used by search to match AppLink URLs. */
   readonly sourceLinks: Pick<TextCache, 'entries'>
@@ -153,6 +155,14 @@ function routes(runtime: HttpHost): Routes {
   const ticket = (id: string) => { if (!store.tickets.get(id)) throw new RouteError(404, 'Ticket not found'); return id }
   const promptBody = (input: { body: (maxBytes?: number) => Promise<unknown> }) => input.body(4 * runtime.machine.promptMaxChars.get() + 4096)
   return {
+    'GET chat/conversations': () => ({ items: runtime.chat.list() }),
+    'POST chat/conversations': async ({ body }) => runtime.chat.create(z.object({ title: z.string().trim().max(120).optional() }).strict().parse(await body()).title),
+    'GET chat/conversations/:id': ({ params }) => { const result = runtime.chat.detail(params.id); if (!result) throw new RouteError(404, 'Conversation not found'); return result },
+    'POST chat/conversations/:id/messages': async ({ params, body }) => {
+      if (!runtime.chat.get(params.id)) throw new RouteError(404, 'Conversation not found')
+      const input = z.object({ text: z.string().trim().min(1).max(20_000), agent: z.enum(['auto', 'deepseek', 'codex', 'claude']).default('auto') }).strict().parse(await body())
+      try { return runtime.chat.post(params.id, input.text, input.agent) } catch (error) { throw new RouteError(400, error instanceof Error ? error.message : 'Message refused') }
+    },
     'GET state': () => stateView(runtime),
     'GET overview': () => overview(views(runtime), runtime.health, policyVersion(store.settings()),
       executorLoad(store, runtime.executor.activeCount()), runtime.setupProblem ?? runtime.feishuProblem),

@@ -26,7 +26,8 @@
     "README.md",
     "prompts",
     "skills",
-    "scripts/codex-frontend.mjs"
+    "scripts/codex-frontend.mjs",
+    "scripts/claude-delegate.mjs"
   ],
   "dsh": {
     "bundle": {
