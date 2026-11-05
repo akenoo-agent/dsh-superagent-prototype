@@ -96,3 +96,32 @@ it('answers a prompt save that lost a race with 409, and a settings body over 12
     body: { error: `Request exceeds ${128 * 1024} bytes` } })
   expect(saves).toEqual([])
 })
+
+it('accepts a local chat message only for an authorized operator and routes it through a ticket', async () => {
+  const { startRuntime } = await import('./fixtures/host.ts')
+  const host = await startRuntime()
+  try {
+    const created = await host.api('POST', 'chat/conversations', { title: 'Local task' })
+    expect(created.status).toBe(200)
+    const id = String(created.body.id)
+    expect((await host.api('POST', `chat/conversations/${id}/messages`, { text: 'Fix a typo', agent: 'deepseek' })).status).toBe(400)
+    expect(host.runtime.store.threads.get(`local:${id}`)).toBeUndefined()
+    const settings = host.runtime.store.settings()
+    host.runtime.store.saveSettings({ ...settings, policy: { ...settings.policy, sources: { ...settings.policy.sources, local: { allowed: [{ id: 'operator' }] } } } })
+    const posted = await host.api('POST', `chat/conversations/${id}/messages`, { text: 'Fix a typo', agent: 'deepseek' })
+    expect(posted).toMatchObject({ status: 200, body: { role: 'user', text: 'Fix a typo', agent: 'deepseek' } })
+    const trigger = host.runtime.store.triggers.get(String(posted.body.id))!
+    expect(trigger).toMatchObject({ source: 'local', actor: { source: 'local', id: 'operator' }, addressed: 'direct' })
+    expect(trigger.text).toContain('Operator-selected coding agent: deepseek')
+    await host.runtime.idle()
+    const result = await host.route({ kind: 'accept', trigger_id: trigger.id, title: 'Fix typo', worktree_name: 'fix-typo', acknowledgement: 'On it.' })
+    await host.runtime.idle()
+    const ticketId = (result.ticket as { ticket_id: string }).ticket_id
+    const detail = await host.api('GET', `chat/conversations/${id}`)
+    expect(detail).toMatchObject({ status: 200, body: { tickets: [{ id: ticketId }], messages: [{ role: 'user', text: 'Fix a typo' }, { role: 'assistant', text: 'On it.' }] } })
+    const ticket = host.runtime.store.tickets.get(ticketId)!
+    expect(ticket.execution?.directory).toContain('fix-typo')
+    expect(await host.api('POST', `chat/conversations/${id}/messages`, { text: 'Follow up', agent: 'claude' })).toMatchObject({ status: 200 })
+    expect(host.runtime.store.tickets.get(ticketId)?.inputs.some(input => input.kind === 'trigger')).toBe(true)
+  } finally { await host.stop() }
+})

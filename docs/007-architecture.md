@@ -314,6 +314,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/core/memory.ts` | `MemoryRepositories`: the Store's repositories in memory, in the Store's order and with its nested rollback, for domain tests |
 | `src/core/index.ts` | The core's exports |
 | `src/app/runtime.ts` | The Runtime, the composition root, with its start and stop |
+| `src/app/local-chat.ts` | Local chat conversations, source identity, admission and durable replies |
 | `src/app/setup.ts` | Setup, and `setupChanged`, whether a save changes a field setup reads |
 | `src/app/passes.ts` | Passes, the pass scheduler |
 | `src/app/outbox.ts` | The Outbox: the Engine's `Outbox` port, the receipts and the `reply` effects that send them |
@@ -382,6 +383,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `src/client/overview.tsx` | The overview |
 | `src/client/source.tsx`, `trigger.tsx`, `eval.tsx`, `execution.tsx` | One file per stage: its status, and its settings where it has some |
 | `src/client/thread.tsx`, `ticket.tsx` | The record pages: a Thread with its timeline, and a Ticket with its authorization, Inputs and Assignments |
+| `src/client/chat.tsx` | The local operator chat: conversation list, agent choice, messages and related Tickets |
 | `src/client/settings.tsx` | The Settings tab: the group navigation and the group on screen |
 | `src/client/settings-kit.tsx` | The building blocks of settings blocks: the settings the stage groups share, `useBlockDraft`, the fields, among them a Source kind's, and the history of saves |
 | `src/client/prompts.tsx` | The Prompts settings: the page owns the view it read and its editor the draft, and the Edit, Full prompt and History tabs render from them; a built-in part's editor shows a changed default and keeps or drops the override |
@@ -437,6 +439,7 @@ Some generic modules still refer directly to GitHub or Feishu:
 | `tests/model-surface.spec.ts` | Everything models read: tools, prompts, skills and inputs, checked against the tool schemas, the execution environment and the glossary, within a size budget per role |
 | `tests/deployment.spec.ts`, `tests/environment.spec.ts`, `tests/index.spec.ts` | The plugin configuration and setup, the agent's process environment, the plugin entry |
 | `tests/service-script.spec.ts` | `scripts/dsh-superagent` against fake `ps`, `tmux` and `dsh` |
+| `tests/codex-frontend.spec.ts` | The optional frontend delegation scope, changed-file checks and launcher with fake Codex and npm |
 | `tests/client.spec.tsx`, `tests/navigation.spec.ts`, `tests/controls.spec.tsx` | The client plugin's registration and polling, Session navigation and route memory, the local controls, and the panel's imports, which have no cycle |
 | `tests/panel-overview.spec.tsx`, `panel-source.spec.tsx`, `panel-trigger.spec.tsx`, `panel-eval.spec.tsx`, `panel-execution.spec.tsx` | Each page of the panel, against a fake management API answered by route |
 | `tests/panel-settings.spec.tsx`, `panel-prompts.spec.tsx`, `panel-deployment.spec.tsx`, `panel-panel.spec.tsx` | The settings groups, drafts and history, the prompts, the Deployment page, and the panel's search, glossary and route memory |
