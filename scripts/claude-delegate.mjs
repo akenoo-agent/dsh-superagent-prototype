@@ -11,7 +11,7 @@ function run(program, args, cwd, input, env = process.env) {
 }
 function git(cwd, ...args) {
   const result = run('git', args, cwd)
-  if (result.status !== 0) throw new Error(`git ${args[0]} failed`)
+  if (result.status !== 0) throw new Error(`git ${args[0]} failed${result.error ? `: ${result.error.message}` : result.stderr ? `: ${result.stderr.trim().slice(0, 240)}` : ` (exit ${result.status})`}`)
   return result.stdout
 }
 function executable() {
@@ -36,7 +36,10 @@ export function main() {
   const prompt = `Work only on this delegated task within the current ticket worktree: ${task}\nDo not commit, push, merge, change git metadata, read or disclose credentials or auth files. Follow repository instructions. Stop if work exceeds the delegated task.`
   const result = run(claude, ['-p', '--permission-mode', 'acceptEdits', '--permission-prompts', 'none', '--no-session-persistence'], cwd, prompt, env)
   const files = changed(before, snapshot(cwd)), gitChanged = git(cwd, 'rev-parse', 'HEAD') !== head || git(cwd, 'diff', '--cached', '--binary') !== index
-  console.log(JSON.stringify({ claudeExit: result.status, ...(result.error ? { error: result.error.message } : {}), changedFiles: files, gitChanged }, null, 2))
+  const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`
+  const quota = /weekly limit/i.test(output) ? 'Claude subscription weekly limit reached; retry after its displayed reset time.'
+    : /daily limit/i.test(output) ? 'Claude subscription daily limit reached; retry after its displayed reset time.' : undefined
+  console.log(JSON.stringify({ claudeExit: result.status, ...(quota ? { error: quota } : result.error ? { error: result.error.message } : {}), changedFiles: files, gitChanged }, null, 2))
   return result.error || result.status !== 0 || gitChanged ? 1 : 0
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
